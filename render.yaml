@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: leadflow-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run db:migrate && npm run db:seed
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: COOKIE_NAME
+        value: lead_mgmt_token
