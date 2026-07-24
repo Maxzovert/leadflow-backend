@@ -10,26 +10,57 @@ const userRoutes = require('./routes/userRoutes');
 const leadRoutes = require('./routes/leadRoutes');
 const { success } = require('./utils/response');
 
+function normalizeOrigin(origin) {
+  if (!origin) return origin;
+  return origin.trim().replace(/\/$/, '');
+}
+
 function createApp() {
   const app = express();
 
   app.set('trust proxy', 1);
 
-  const allowedOrigins = config.clientUrl.split(',').map((o) => o.trim()).filter(Boolean);
+  const allowedOrigins = config.clientUrl
+    .split(',')
+    .map((o) => normalizeOrigin(o))
+    .filter(Boolean);
 
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Non-browser clients (health checks, curl) send no Origin
+        if (!origin) {
           return callback(null, true);
         }
+
+        const normalized = normalizeOrigin(origin);
+        if (allowedOrigins.includes(normalized)) {
+          return callback(null, true);
+        }
+
+        console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
         return callback(null, false);
       },
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     })
   );
 
-  app.use(helmet());
+  // Ensure preflight responses include credentials headers
+  app.options('*', cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true,
+  }));
+
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }));
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
@@ -48,7 +79,13 @@ function createApp() {
   app.use('/api', limiter);
 
   app.get('/health', (req, res) => {
-    success(res, { message: 'API is healthy', data: { env: config.env } });
+    success(res, {
+      message: 'API is healthy',
+      data: {
+        env: config.env,
+        corsOrigins: allowedOrigins,
+      },
+    });
   });
 
   app.use('/api/auth', authRoutes);
