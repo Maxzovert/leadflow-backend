@@ -83,7 +83,13 @@ function createApp() {
       message: 'API is healthy',
       data: {
         env: config.env,
+        // Used by Docker load-balancer demo to show which instance answered
+        instance: process.env.INSTANCE_NAME || 'unknown',
         corsOrigins: allowedOrigins,
+        cookie: {
+          sameSite: config.cookie.sameSite,
+          secure: config.cookie.secure,
+        },
       },
     });
   });

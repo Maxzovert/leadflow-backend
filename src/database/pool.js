@@ -1,12 +1,16 @@
 const { Pool } = require('pg');
 const config = require('../config');
 
+// Enable TLS only for cloud DBs (Neon) or explicit sslmode=require.
+// Local Docker Postgres has no TLS — forcing SSL there breaks startup.
+const needsSsl =
+  Boolean(config.databaseUrl) &&
+  (config.databaseUrl.includes('neon.tech') ||
+    /sslmode=require/i.test(config.databaseUrl));
+
 const pool = new Pool({
   connectionString: config.databaseUrl,
-  ssl:
-    config.env === 'production' || (config.databaseUrl && config.databaseUrl.includes('neon.tech'))
-      ? { rejectUnauthorized: false }
-      : undefined,
+  ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,

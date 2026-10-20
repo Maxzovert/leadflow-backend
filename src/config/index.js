@@ -38,8 +38,13 @@ const config = {
   },
   cookie: {
     name: process.env.COOKIE_NAME || 'lead_mgmt_token',
-    secure: process.env.COOKIE_SECURE === 'true' || nodeEnv === 'production',
-    sameSite: process.env.COOKIE_SAME_SITE || (nodeEnv === 'production' ? 'none' : 'lax'),
+    // Explicit COOKIE_SECURE=false wins (needed for local Docker HTTP on :8080)
+    secure:
+      process.env.COOKIE_SECURE === 'true' ||
+      (process.env.COOKIE_SECURE !== 'false' && nodeEnv === 'production'),
+    sameSite:
+      process.env.COOKIE_SAME_SITE ||
+      (nodeEnv === 'production' ? 'none' : 'lax'),
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   },
